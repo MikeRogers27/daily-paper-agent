@@ -46,10 +46,12 @@ daily_papers.py (orchestrator)
 - Reduces candidate set before expensive LLM calls
 
 **ranking_stage.py**
+- Contains `rank_papers()` function - the single source of truth for paper scoring
 - Batches papers (5-10 per batch)
 - Sends to LLM with relevance specification from `prompts/spec.md`
 - Scores each paper on 1-5 scale
 - Sorts by relevance score descending
+- Used by both production pipeline and test scoring
 
 **summary_stage.py**
 - Selects top papers using hybrid logic: top N OR score ≥ threshold
@@ -66,6 +68,7 @@ daily_papers.py (orchestrator)
 **llm_client.py**
 - Abstract `LLMClient` base class with shared retry logic
 - `create_llm_client(config)` factory function
+- `parse_llm_response(response_text)` utility for extracting JSON from LLM responses
 - Supports multiple providers via unified interface
 
 **bedrock_client.py**
@@ -78,6 +81,11 @@ daily_papers.py (orchestrator)
 - Uses subprocess to call command-line tool
 - Supports mock mode for testing
 
+**slack_notifier.py**
+- Slack webhook integration for notifications
+- Posts highly relevant papers to Slack channels
+- Configurable score threshold and rate limiting
+
 #### 5. Configuration (`config.py`, `config.yaml`)
 - Provider selection (bedrock/gemini)
 - Source settings (arXiv categories, HuggingFace enabled)
@@ -85,11 +93,26 @@ daily_papers.py (orchestrator)
 - LLM settings (model, batch size, retries)
 - Output settings (top N, score threshold)
 
-#### 6. Relevance Specification (`prompts/spec.md`)
-- Defines what papers are relevant to the research area
-- Used as system prompt for LLM ranking
-- Contains scoring rubric (1-5 scale)
-- Customizable per research domain
+#### 6. Relevance Specification (`prompts/`)
+- **spec.md**: Defines what papers are relevant to the research area
+  - Used as system prompt for LLM ranking
+  - Contains scoring rubric (1-5 scale)
+  - Customizable per research domain
+- **rank-papers.md**: Template prompt for batch paper ranking
+- **refine-spec.md**: Prompt for LLM-assisted spec refinement
+- **spec.example.md**: Example relevance specification
+
+#### 7. Testing & Refinement Tools (`tools/`)
+- **test_scoring.py**: Testing framework for relevance scoring
+  - Loads test cases from YAML files
+  - Converts test cases to Paper objects
+  - Uses `rank_papers()` for consistent scoring with production
+  - Calculates metrics (MAE, RMSE, accuracy)
+  - Exports failures for spec refinement
+- **refine_spec.py**: LLM-assisted spec refinement tool
+  - Analyzes misclassified papers
+  - Suggests improvements to relevance specification
+  - Helps iteratively improve scoring accuracy
 
 ## Key Design Decisions
 
@@ -203,23 +226,32 @@ daily-paper-agent/
 ├── daily_papers.py          # Main orchestrator
 │
 ├── pipeline/                # Pipeline stages
-│   ├── llm_client.py        # Abstract LLM interface + factory
+│   ├── llm_client.py        # Abstract LLM interface + factory + parse_llm_response
 │   ├── bedrock_client.py    # AWS Bedrock implementation
 │   ├── gemini_client.py     # Gemini CLI implementation
+│   ├── slack_notifier.py    # Slack webhook integration
 │   ├── fetch_stage.py       # Fetch and deduplicate
 │   ├── filter_stage.py      # Keyword filtering
-│   ├── ranking_stage.py     # LLM ranking
+│   ├── ranking_stage.py     # LLM ranking (rank_papers function)
 │   ├── summary_stage.py     # Summary generation
 │   ├── report_stage.py      # Report generation
 │   └── logger.py            # Logging utilities
 │
-├── tools/                   # Data fetching tools
+├── tools/                   # Data fetching and testing tools
 │   ├── models.py            # Paper dataclass
 │   ├── arxiv_tool.py        # ArXiv fetcher
-│   └── hf_daily_tool.py     # HuggingFace scraper
+│   ├── hf_daily_tool.py     # HuggingFace scraper
+│   ├── test_scoring.py      # Test scoring framework
+│   └── refine_spec.py       # Spec refinement tool
 │
 ├── prompts/                 # LLM prompts
-│   └── spec.md              # Relevance specification
+│   ├── spec.md              # Relevance specification
+│   ├── rank-papers.md       # Batch ranking prompt template
+│   ├── refine-spec.md       # Spec refinement prompt
+│   └── spec.example.md      # Example spec
+│
+├── tests/                   # Test data
+│   └── test-cases.example.yaml  # Example test cases
 │
 ├── cache/                   # Intermediate results (gitignored)
 ├── reports/                 # Final outputs (gitignored)
@@ -238,14 +270,13 @@ daily-paper-agent/
 
 1. **Additional Sources**: Semantic Scholar, OpenReview, CVPR/ICCV proceedings
 2. **More LLM Providers**: OpenAI, Anthropic Direct API, local models
-3. **Notification Integration**: Slack, email, Discord webhooks
-4. **Cost Tracking**: Monitor API usage and costs per provider
-5. **Provider Fallback**: Automatic fallback if primary provider fails
-6. **Parallel Processing**: Concurrent API calls for faster ranking
-7. **Paper Clustering**: Group similar papers in reports
-8. **Citation Analysis**: Track paper citations and impact
-9. **Author Tracking**: Follow specific researchers
-10. **Interactive UI**: Web interface for browsing and filtering
+3. **Cost Tracking**: Monitor API usage and costs per provider
+4. **Provider Fallback**: Automatic fallback if primary provider fails
+5. **Parallel Processing**: Concurrent API calls for faster ranking
+6. **Paper Clustering**: Group similar papers in reports
+7. **Citation Analysis**: Track paper citations and impact
+8. **Author Tracking**: Follow specific researchers
+9. **Interactive UI**: Web interface for browsing and filtering
 
 ## Agent Context Notes
 
@@ -256,3 +287,5 @@ When working with this codebase:
 - The relevance specification is the key to good paper selection
 - Configuration is centralized in config.yaml for easy customization
 - The abstract LLM client makes it easy to switch providers or add new ones
+- `rank_papers()` in ranking_stage.py is the single source of truth for scoring
+- Test scoring uses the same `rank_papers()` function for consistency
