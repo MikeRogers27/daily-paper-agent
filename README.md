@@ -366,7 +366,7 @@ The relevance specification is the key to accurate paper scoring. Over time, you
 
 1. **Run tests** to identify misclassifications:
    ```bash
-   python -m tools.test_scoring test --test-file ~/my-research-specs/test-cases.yaml
+   us run -m tools.test_scoring --test-file ~/my-research-specs/test-cases.yaml test
    ```
    
    This outputs:
