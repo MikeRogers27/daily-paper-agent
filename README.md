@@ -377,14 +377,14 @@ The relevance specification is the key to accurate paper scoring. Over time, you
 
 2. **Export failures** for refinement:
    ```bash
-   python -m tools.test_scoring export-failures \
+   uv run -m tools.test_scoring export-failures \
        --test-file ~/my-research-specs/test-cases.yaml \
        --export failures.json
    ```
 
 3. **Refine the spec** using LLM analysis:
    ```bash
-   python -m tools.refine_spec \
+   uv run -m tools.refine_spec \
        --spec ~/my-research-specs/spec.md \
        --underscored underscored.json \
        --overscored overscored.json \
