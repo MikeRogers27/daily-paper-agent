@@ -1,0 +1,96 @@
+# Example configuration for daily-paper-agent
+# Copy this to config.yaml and customize for your needs
+
+sources:
+  arxiv:
+    enabled: true
+    # ArXiv categories to monitor
+    categories:
+      - cs.CV  # Computer Vision
+      - cs.AI  # Artificial Intelligence
+      - cs.LG  # Machine Learning
+    # Maximum papers to fetch per day
+    max_results: 200
+  
+  huggingface:
+    enabled: true
+
+filter:
+  # Papers matching ANY of these keywords will be included
+  include_keywords:
+    - portrait
+    - talking head
+    - face animation
+    - facial reenactment
+    - one-shot
+    - audio-driven
+    - lip sync
+    - expression transfer
+    - motion reenactment
+    - head avatar
+    - flow matching
+    - diffusion
+  
+  # Papers matching ANY of these keywords will be excluded
+  exclude_keywords:
+    - medical
+    - deepfake detection
+    - face recognition
+    - autonomous driving
+
+llm:
+  # LLM provider: "bedrock" or "gemini"
+  provider: bedrock
+  
+  # AWS Bedrock settings (when provider: bedrock)
+  bedrock:
+    # Use inference profile format for Bedrock
+    model_id: us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    region: us-east-1
+  
+  # Gemini settings (when provider: gemini)
+  gemini:
+    model: gemini-2.5-flash-lite
+  
+  # Common LLM settings
+  batch_size: 8  # Papers per API call (5-10 recommended)
+  max_retries: 3
+  retry_delay: 2  # seconds
+  
+  # Set to true for testing without real LLM access
+  mock_mode: false
+
+output:
+  # Number of top papers to include in report
+  top_n: 10
+  
+  # Minimum relevance score (1-5 scale) to include
+  score_threshold: 4.0
+  
+  # Output directories
+  reports_dir: reports
+  cache_dir: cache
+
+spec:
+  # Path to your actual relevance specification (keep outside repo)
+  path: prompts/spec.example.md  # Change to your actual spec path
+  # Optional: path to paper list for spec creation
+  create_papers_path: null
+  # Optional: path to test cases for scoring validation
+  test_cases_path: null
+  # Optional: directory for spec backups
+  backup_dir: null
+
+notifications:
+  slack:
+    # Enable Slack notifications
+    enabled: false
+    
+    # Slack webhook URL (recommended: use SLACK_WEBHOOK_URL env var instead)
+    webhook_url: null
+    
+    # Only post papers with score >= this threshold
+    min_score: 4.5
+    
+    # Optional: override default Slack channel
+    channel: null  # e.g., "#research-papers"

@@ -1,0 +1,7 @@
+version: 1.0
+test_cases:
+  - id: "2401.12345"
+    title: "Your Paper Title"
+    abstract: "Paper abstract..."
+    expected_score: 5
+    notes: "Why this should score 5"
