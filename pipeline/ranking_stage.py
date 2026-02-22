@@ -6,6 +6,11 @@ from pipeline.llm_client import LLMClient
 from tools.models import Paper
 
 
+def load_ranking_prompt() -> str:
+    """Load the relevance specification document from the given path."""
+    return Path("prompts/rank-papers.md").read_text()
+
+
 def load_relevance_spec(spec_path: str) -> str:
     """Load the relevance specification document from the given path."""
     return Path(spec_path).read_text()
@@ -50,25 +55,13 @@ URL: {p.url}
 
 """
 
-        prompt = f"""You are evaluating academic papers for relevance to a specific research area.
-
-Rate each paper on a 1-5 scale based on the relevance specification provided in the system prompt 
-where 1 is low relevance and 5 is the most relevant.
-
-Papers to evaluate:
-{papers_text}
-
-Return a JSON object mapping paper IDs to scores. Format:
-{{
-  "paper_id_1": 5,
-  "paper_id_2": 3,
-  ...
-}}
-
-Only return the JSON, no other text."""
+        prompt = load_ranking_prompt()
+        prompt = prompt.replace("{papers_text}", papers_text).replace(
+            "{current_spec}", spec
+        )
 
         try:
-            response = llm_client.invoke(prompt, system_prompt=spec)
+            response = llm_client.invoke(prompt)
             scores = parse_llm_response(response)
 
             for p in batch:
