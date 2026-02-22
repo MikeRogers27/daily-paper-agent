@@ -17,14 +17,14 @@ def _fetch_abstract(paper_url: str) -> str | None:
         soup = BeautifulSoup(resp.text, "html.parser")
 
         # Find the abstract section
-        abstract_div = soup.find("h2", string="Abstract")
+        abstract_div = soup.find("h2", string="Abstract")  # type: ignore
         if abstract_div:
             parent = abstract_div.find_parent("div")
             if parent:
                 # Find the <p> tag containing the actual abstract text
                 abstract_p = parent.find("p", class_="text-gray-600")
                 if abstract_p:
-                    return abstract_p.get_text(strip=True)
+                    return str(abstract_p.get_text(strip=True))
         return None
     except Exception:
         return None
@@ -43,10 +43,10 @@ def get_hf_daily_papers(day: dt.date) -> list[Paper]:
     papers: list[Paper] = []
 
     for article in soup.find_all("article"):
-        title_link = article.find("a", href=True, string=True)
+        title_link = article.find("a", href=True, string=True)  # type: ignore
         if not title_link:
             for a in article.find_all("a", href=True):
-                if a["href"].startswith("/papers/"):
+                if str(a["href"]).startswith("/papers/"):
                     title_link = a
                     break
         if not title_link:

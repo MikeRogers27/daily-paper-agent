@@ -3,7 +3,7 @@ import random
 
 import boto3
 
-from .llm_client import LLMClient, parse_llm_response
+from .llm_client import LLMClient
 
 
 class BedrockClient(LLMClient):
@@ -44,7 +44,7 @@ class BedrockClient(LLMClient):
         )
 
         response_body = json.loads(response["body"].read())
-        return response_body["content"][0]["text"]
+        return str(response_body["content"][0]["text"])
 
     def _mock_invoke(self, prompt: str) -> str:
         """Mock LLM response for testing."""
@@ -56,10 +56,7 @@ class BedrockClient(LLMClient):
             scores = {}
             for paper_id in paper_ids:
                 prompt_lower = prompt.lower()
-                if any(
-                    kw in prompt_lower
-                    for kw in ["portrait", "face", "talking", "diffusion", "animation"]
-                ):
+                if any(kw in prompt_lower for kw in ["portrait", "face", "talking", "diffusion", "animation"]):
                     scores[paper_id] = random.choice([3, 4, 5])
                 else:
                     scores[paper_id] = random.choice([1, 2, 3])

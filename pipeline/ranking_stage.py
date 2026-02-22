@@ -15,9 +15,7 @@ def load_relevance_spec(spec_path: str) -> str:
     return Path(spec_path).read_text()
 
 
-def rank_papers(
-    papers: list[Paper], config: Config, llm_client: LLMClient
-) -> list[Paper]:
+def rank_papers(papers: list[Paper], config: Config, llm_client: LLMClient) -> list[Paper]:
     """
     Rank papers using LLM based on relevance specification.
 
@@ -55,9 +53,7 @@ URL: {p.url}
 """
 
         prompt = load_ranking_prompt()
-        prompt = prompt.replace("{papers_text}", papers_text).replace(
-            "{current_spec}", spec
-        )
+        prompt = prompt.replace("{papers_text}", papers_text).replace("{current_spec}", spec)
 
         try:
             response = llm_client.invoke(prompt)

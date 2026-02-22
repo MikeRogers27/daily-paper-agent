@@ -37,12 +37,12 @@ class GeminiClient(LLMClient):
             )
             return result.stdout.strip()
 
-        except FileNotFoundError:
-            raise Exception("gemini not found. Please install it first.")
-        except subprocess.TimeoutExpired:
-            raise Exception("gemini timed out after 60 seconds")
+        except FileNotFoundError as err:
+            raise Exception("gemini not found. Please install it first.") from err
+        except subprocess.TimeoutExpired as err:
+            raise Exception("gemini timed out after 60 seconds") from err
         except subprocess.CalledProcessError as e:
-            raise Exception(f"gemini failed: {e.stderr}")
+            raise Exception(f"gemini failed: {e.stderr}") from e
 
     def _mock_invoke(self, prompt: str) -> str:
         """Mock LLM response for testing."""
@@ -54,10 +54,7 @@ class GeminiClient(LLMClient):
             scores = {}
             for paper_id in paper_ids:
                 prompt_lower = prompt.lower()
-                if any(
-                    kw in prompt_lower
-                    for kw in ["portrait", "face", "talking", "diffusion", "animation"]
-                ):
+                if any(kw in prompt_lower for kw in ["portrait", "face", "talking", "diffusion", "animation"]):
                     scores[paper_id] = random.choice([3, 4, 5])
                 else:
                     scores[paper_id] = random.choice([1, 2, 3])

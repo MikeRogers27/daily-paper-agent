@@ -74,16 +74,14 @@ def _dict_to_paper(d: dict[str, Any]) -> Paper:
         abstract=d["abstract"],
         source=d["source"],
         url=d["url"],
-        published_date=date.fromisoformat(d["published_date"])
-        if d["published_date"]
-        else None,
+        published_date=date.fromisoformat(d["published_date"]) if d["published_date"] else None,
         tags=d.get("tags", []),
         relevance_score=d.get("relevance_score"),
         summary=d.get("summary"),
     )
 
 
-def save_papers_cache(papers: list[Paper], cache_path: str):
+def save_papers_cache(papers: list[Paper], cache_path: str) -> None:
     """Save papers to JSON cache file."""
     Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
     with open(cache_path, "w") as f:

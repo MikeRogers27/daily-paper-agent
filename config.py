@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 import yaml
 
@@ -84,9 +84,7 @@ def load_config(path: str = "config.yaml") -> Config:
         data = yaml.safe_load(f)
 
     llm_data = data["llm"]
-    provider = llm_data.get(
-        "provider", "bedrock"
-    )  # Default to bedrock for backward compatibility
+    provider = llm_data.get("provider", "bedrock")  # Default to bedrock for backward compatibility
 
     bedrock_config = None
     gemini_config = None
@@ -116,7 +114,7 @@ def load_config(path: str = "config.yaml") -> Config:
             slack_data = notif_data["slack"]
             # Support environment variable for webhook URL
             webhook_url = os.environ.get("SLACK_WEBHOOK_URL") or slack_data.get("webhook_url")
-            
+
             slack_config = SlackConfig(
                 enabled=slack_data.get("enabled", False),
                 webhook_url=webhook_url,

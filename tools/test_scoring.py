@@ -11,10 +11,12 @@ import argparse
 import json
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 import yaml
 
-from config import load_config
+from config import Config, load_config
+from pipeline.llm_client import LLMClient
 from pipeline.ranking_stage import rank_papers
 from tools.models import Paper
 
@@ -30,7 +32,7 @@ class TestCase:
     url: str = ""
 
 
-def load_test_cases(test_file):
+def load_test_cases(test_file: str) -> list[TestCase]:
     """Load test cases from YAML file."""
     with open(test_file) as f:
         data = yaml.safe_load(f)
@@ -67,19 +69,19 @@ def test_case_to_paper(tc: TestCase) -> Paper:
     )
 
 
-def score_test_cases(test_cases, config, llm_client):
+def score_test_cases(test_cases: list[TestCase], config: Config, llm_client: LLMClient) -> dict[str, float]:
     """Score test cases using rank_papers."""
     papers = [test_case_to_paper(tc) for tc in test_cases]
     ranked_papers = rank_papers(papers, config, llm_client)
-    
+
     actual_scores = {}
     for paper in ranked_papers:
         actual_scores[paper.id] = paper.relevance_score or 0.0
-    
+
     return actual_scores
 
 
-def compare_scores(test_cases, actual_scores):
+def compare_scores(test_cases: list[TestCase], actual_scores: dict[str, float]) -> dict[str, Any]:
     """Calculate metrics and identify failures."""
     errors = []
     failures = []
@@ -109,7 +111,9 @@ def compare_scores(test_cases, actual_scores):
     return {"mae": mae, "rmse": rmse, "accuracy": accuracy, "failures": failures}
 
 
-def generate_test_report(comparison, test_cases, actual_scores):
+def generate_test_report(
+    comparison: dict[str, Any], test_cases: list[TestCase], actual_scores: dict[str, float]
+) -> None:
     """Generate formatted test report."""
     print("\\n" + "=" * 60)
     print("SCORING TEST REPORT")
@@ -129,19 +133,15 @@ def generate_test_report(comparison, test_cases, actual_scores):
         for f in comparison["failures"]:
             print(f"\\nID: {f['id']}")
             print(f"Title: {f['title'][:60]}...")
-            print(
-                f"Expected: {f['expected']:.1f} | Actual: {f['actual']:.1f} | Diff: {f['diff']:+.1f}"
-            )
+            print(f"Expected: {f['expected']:.1f} | Actual: {f['actual']:.1f} | Diff: {f['diff']:+.1f}")
 
     print("\\n" + "=" * 60)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Test relevance scoring")
     parser.add_argument("command", choices=["test", "export-failures"])
-    parser.add_argument(
-        "--test-file", help="Path to test cases YAML (overrides config)"
-    )
+    parser.add_argument("--test-file", help="Path to test cases YAML (overrides config)")
     parser.add_argument("--export", help="Export failures to JSON file")
 
     args = parser.parse_args()
@@ -150,15 +150,13 @@ def main():
 
     test_file = args.test_file or config.spec.test_cases_path
     if not test_file:
-        parser.error(
-            "--test-file must be specified or spec.test_cases_path must be set in config.yaml"
-        )
+        parser.error("--test-file must be specified or spec.test_cases_path must be set in config.yaml")
 
     test_cases = load_test_cases(test_file)
 
     if args.command == "test":
-        from pipeline.llm_client import create_llm_client
-        
+        from pipeline.llm_factory import create_llm_client
+
         llm_client = create_llm_client(config)
         actual_scores = score_test_cases(test_cases, config, llm_client)
         comparison = compare_scores(test_cases, actual_scores)

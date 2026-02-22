@@ -5,7 +5,7 @@ from pathlib import Path
 from tools.models import Paper
 
 
-def generate_json_report(papers: list[Paper], report_date: date, output_path: str):
+def generate_json_report(papers: list[Paper], report_date: date, output_path: str) -> None:
     """Generate structured JSON report."""
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -20,9 +20,7 @@ def generate_json_report(papers: list[Paper], report_date: date, output_path: st
                 "abstract": p.abstract,
                 "source": p.source,
                 "url": p.url,
-                "published_date": p.published_date.isoformat()
-                if p.published_date
-                else None,
+                "published_date": p.published_date.isoformat() if p.published_date else None,
                 "tags": p.tags,
                 "relevance_score": p.relevance_score,
                 "summary": p.summary,
@@ -35,7 +33,7 @@ def generate_json_report(papers: list[Paper], report_date: date, output_path: st
         json.dump(report, f, indent=2)
 
 
-def generate_markdown_report(papers: list[Paper], report_date: date, output_path: str):
+def generate_markdown_report(papers: list[Paper], report_date: date, output_path: str) -> None:
     """Generate human-readable Markdown report."""
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 

@@ -11,23 +11,27 @@ Usage:
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from config import load_config
-from pipeline.llm_client import create_llm_client
+from pipeline.llm_client import LLMClient
+from pipeline.llm_factory import create_llm_client
+
+from .models import Paper
 
 
-def load_feedback_papers(filepath):
+def load_feedback_papers(filepath: str) -> Any:
     """Load papers from JSON file."""
     with open(filepath) as f:
         return json.load(f)
 
 
-def load_refine_prompt():
+def load_refine_prompt() -> str:
     """Load the refinement prompt template."""
     return Path("prompts/refine-spec.md").read_text()
 
 
-def format_papers_for_prompt(papers):
+def format_papers_for_prompt(papers: list[Paper]) -> str:
     """Format paper list for LLM prompt."""
     lines = []
     for p in papers:
@@ -39,7 +43,7 @@ def format_papers_for_prompt(papers):
     return "\n".join(lines)
 
 
-def refine_spec(spec_path, underscored_file, overscored_file, llm_client):
+def refine_spec(spec_path: str, underscored_file: str, overscored_file: str, llm_client: LLMClient) -> str:
     """Refine spec based on feedback papers."""
     # Load current spec
     current_spec = Path(spec_path).read_text()
@@ -64,13 +68,13 @@ def refine_spec(spec_path, underscored_file, overscored_file, llm_client):
     return refined_spec
 
 
-def save_refined_spec(spec_text, output_path):
+def save_refined_spec(spec_text: str, output_path: str) -> None:
     """Save refined spec to file."""
     Path(output_path).write_text(spec_text)
     print(f"Saved refined spec to: {output_path}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Refine relevance specification")
     parser.add_argument("--spec", required=True, help="Path to current spec")
     parser.add_argument("--underscored", help="JSON file with underscored papers")

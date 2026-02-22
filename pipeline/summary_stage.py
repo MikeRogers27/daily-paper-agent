@@ -21,9 +21,7 @@ def select_top_papers(papers: list[Paper], config: Config) -> list[Paper]:
     top_n = papers[: config.output.top_n]
 
     # Get all papers with score >= threshold
-    high_score = [
-        p for p in papers if (p.relevance_score or 0) >= config.output.score_threshold
-    ]
+    high_score = [p for p in papers if (p.relevance_score or 0) >= config.output.score_threshold]
 
     # Return union (deduplicated by ID)
     seen = set()
@@ -66,10 +64,6 @@ Provide only the summary, no other text."""
             paper.summary = summary.strip()
         except Exception as e:
             print(f"Error generating summary for {paper.id}: {e}")
-            paper.summary = (
-                paper.abstract[:200] + "..."
-                if len(paper.abstract) > 200
-                else paper.abstract
-            )
+            paper.summary = paper.abstract[:200] + "..." if len(paper.abstract) > 200 else paper.abstract
 
     return papers

@@ -1,13 +1,10 @@
 import json
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from config import Config
+from typing import Any
 
 
-def parse_llm_response(response_text: str) -> dict:
+def parse_llm_response(response_text: str) -> Any:
     """Extract JSON from LLM response text."""
     # Try to find JSON in code blocks
     if "```json" in response_text:
@@ -49,39 +46,3 @@ class LLMClient(ABC):
                 raise
 
         raise Exception(f"Failed after {self.max_retries} retries")
-
-
-def create_llm_client(config: "Config") -> LLMClient:
-    """Factory function to create LLM client based on config."""
-    from .bedrock_client import BedrockClient
-    from .gemini_client import GeminiClient
-
-    provider = config.llm.provider
-
-    if provider == "bedrock":
-        if not config.llm.bedrock:
-            raise ValueError("Bedrock provider selected but bedrock config is missing")
-
-        return BedrockClient(
-            model_id=config.llm.bedrock.model_id,
-            region=config.llm.bedrock.region,
-            max_retries=config.llm.max_retries,
-            retry_delay=config.llm.retry_delay,
-            mock_mode=config.llm.mock_mode,
-        )
-
-    elif provider == "gemini":
-        if not config.llm.gemini:
-            raise ValueError("Gemini provider selected but gemini config is missing")
-
-        return GeminiClient(
-            model=config.llm.gemini.model,
-            max_retries=config.llm.max_retries,
-            retry_delay=config.llm.retry_delay,
-            mock_mode=config.llm.mock_mode,
-        )
-
-    else:
-        raise ValueError(
-            f"Unknown LLM provider: {provider}. Must be 'bedrock' or 'gemini'"
-        )

@@ -1,5 +1,6 @@
 import time
 from datetime import date
+from typing import Any
 
 import requests
 
@@ -14,7 +15,7 @@ class SlackNotifier:
         self.webhook_url = webhook_url
         self.channel = channel
 
-    def format_paper_message(self, paper: Paper, report_date: date) -> dict:
+    def format_paper_message(self, paper: Paper, report_date: date) -> dict[str, Any]:
         """Format a paper as Slack blocks."""
         # Score emoji
         score = paper.relevance_score or 0
@@ -74,7 +75,7 @@ class SlackNotifier:
             print(f"Error posting to Slack: {e}")
             return False
 
-    def post_papers(self, papers: list[Paper], report_date: date) -> dict:
+    def post_papers(self, papers: list[Paper], report_date: date) -> dict[str, Any]:
         """Post multiple papers to Slack with rate limiting. Returns stats."""
         stats = {"posted": 0, "failed": 0, "skipped": 0}
 
@@ -103,7 +104,7 @@ class SlackNotifier:
         }
 
         if self.channel:
-            header["channel"] = self.channel
+            header["channel"] = self.channel  # type: ignore
 
         try:
             requests.post(self.webhook_url, json=header, timeout=10)
@@ -125,7 +126,7 @@ class SlackNotifier:
         return stats
 
 
-def notify_slack(papers: list[Paper], report_date: date, config: Config) -> dict:
+def notify_slack(papers: list[Paper], report_date: date, config: Config) -> dict[str, Any]:
     """
     Send high-scoring papers to Slack.
 
