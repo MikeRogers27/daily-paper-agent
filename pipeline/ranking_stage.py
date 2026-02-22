@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from config import Config
-from pipeline.bedrock_client import parse_llm_response
-from pipeline.llm_client import LLMClient
+from pipeline.llm_client import LLMClient, parse_llm_response
 from tools.models import Paper
 
 

@@ -5,3 +5,6 @@ test_cases:
     abstract: "Paper abstract..."
     expected_score: 5
     notes: "Why this should score 5"
+    # Optional fields:
+    # authors: ["Author One", "Author Two"]
+    # url: "https://arxiv.org/abs/2401.12345"

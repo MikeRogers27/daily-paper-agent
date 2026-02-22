@@ -3,7 +3,7 @@ import random
 
 import boto3
 
-from .llm_client import LLMClient
+from .llm_client import LLMClient, parse_llm_response
 
 
 class BedrockClient(LLMClient):
@@ -67,20 +67,3 @@ class BedrockClient(LLMClient):
             return json.dumps(scores)
         else:
             return "This paper presents a novel approach to the problem, demonstrating significant improvements over existing methods. The proposed technique shows promising results on benchmark datasets."
-
-
-def parse_llm_response(response_text: str) -> dict:
-    """Extract JSON from LLM response text."""
-    # Try to find JSON in code blocks
-    if "```json" in response_text:
-        start = response_text.find("```json") + 7
-        end = response_text.find("```", start)
-        json_text = response_text[start:end].strip()
-    elif "```" in response_text:
-        start = response_text.find("```") + 3
-        end = response_text.find("```", start)
-        json_text = response_text[start:end].strip()
-    else:
-        json_text = response_text.strip()
-
-    return json.loads(json_text)

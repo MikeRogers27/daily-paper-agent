@@ -10,14 +10,13 @@ Usage:
 import argparse
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import yaml
 
 from config import load_config
-from pipeline.bedrock_client import parse_llm_response
-from pipeline.llm_client import create_llm_client
-from pipeline.ranking_stage import load_relevance_spec
+from pipeline.ranking_stage import rank_papers
+from tools.models import Paper
 
 
 @dataclass
@@ -27,6 +26,8 @@ class TestCase:
     abstract: str
     expected_score: float
     notes: str = ""
+    authors: list[str] = field(default_factory=list)
+    url: str = ""
 
 
 def load_test_cases(test_file):
@@ -43,33 +44,38 @@ def load_test_cases(test_file):
                 abstract=tc.get("abstract", ""),
                 expected_score=tc["expected_score"],
                 notes=tc.get("notes", ""),
+                authors=tc.get("authors", []),
+                url=tc.get("url", ""),
             )
         )
     return cases
 
 
-def score_test_cases(test_cases, spec_path, llm_client):
-    """Score test cases using the spec."""
-    spec = load_relevance_spec(spec_path)
+def test_case_to_paper(tc: TestCase) -> Paper:
+    """Convert TestCase to Paper for scoring."""
+    return Paper(
+        id=tc.id,
+        title=tc.title,
+        authors=tc.authors,
+        abstract=tc.abstract,
+        source="test",
+        url=tc.url or f"https://arxiv.org/abs/{tc.id}",
+        published_date=None,
+        tags=[],
+        relevance_score=None,
+        summary=None,
+    )
+
+
+def score_test_cases(test_cases, config, llm_client):
+    """Score test cases using rank_papers."""
+    papers = [test_case_to_paper(tc) for tc in test_cases]
+    ranked_papers = rank_papers(papers, config, llm_client)
+    
     actual_scores = {}
-
-    for tc in test_cases:
-        prompt = f"""Rate this paper on a 1-5 scale based on the relevance specification.
-
-Paper ID: {tc.id}
-Title: {tc.title}
-Abstract: {tc.abstract}
-
-Return JSON: {{"score": <number>}}"""
-
-        try:
-            response = llm_client.invoke(prompt, system_prompt=spec)
-            result = parse_llm_response(response)
-            actual_scores[tc.id] = float(result.get("score", 0))
-        except Exception as e:
-            print(f"Error scoring {tc.id}: {e}")
-            actual_scores[tc.id] = 0.0
-
+    for paper in ranked_papers:
+        actual_scores[paper.id] = paper.relevance_score or 0.0
+    
     return actual_scores
 
 
@@ -133,27 +139,35 @@ def generate_test_report(comparison, test_cases, actual_scores):
 def main():
     parser = argparse.ArgumentParser(description="Test relevance scoring")
     parser.add_argument("command", choices=["test", "export-failures"])
-    parser.add_argument("--test-file", required=True, help="Path to test cases YAML")
-    parser.add_argument("--spec-path", help="Path to spec (default from config)")
+    parser.add_argument(
+        "--test-file", help="Path to test cases YAML (overrides config)"
+    )
     parser.add_argument("--export", help="Export failures to JSON file")
 
     args = parser.parse_args()
 
     config = load_config()
-    spec_path = args.spec_path or config.spec.path
 
-    test_cases = load_test_cases(args.test_file)
+    test_file = args.test_file or config.spec.test_cases_path
+    if not test_file:
+        parser.error(
+            "--test-file must be specified or spec.test_cases_path must be set in config.yaml"
+        )
+
+    test_cases = load_test_cases(test_file)
 
     if args.command == "test":
+        from pipeline.llm_client import create_llm_client
+        
         llm_client = create_llm_client(config)
-        actual_scores = score_test_cases(test_cases, spec_path, llm_client)
+        actual_scores = score_test_cases(test_cases, config, llm_client)
         comparison = compare_scores(test_cases, actual_scores)
         generate_test_report(comparison, test_cases, actual_scores)
 
         if args.export and comparison["failures"]:
             with open(args.export, "w") as f:
                 json.dump(comparison["failures"], f, indent=2)
-            print(f"\\nExported failures to: {args.export}")
+            print(f"\nExported failures to: {args.export}")
 
 
 if __name__ == "__main__":
