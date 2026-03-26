@@ -14,7 +14,12 @@ from pipeline.slack_notifier import notify_slack
 from pipeline.summary_stage import generate_summaries, select_top_papers
 
 
-def run_pipeline(target_date: date, config: Config, skip_cache: bool = False) -> None:
+def run_pipeline(
+    target_date: date,
+    config: Config,
+    skip_cache: bool = False,
+    allow_duplicates: bool = False,
+) -> None:
     """Run the complete daily papers pipeline."""
     # Create directories first
     cache_dir = Path(config.output.cache_dir)
@@ -38,7 +43,7 @@ def run_pipeline(target_date: date, config: Config, skip_cache: bool = False) ->
         else:
             logger.info("[1/6] Fetch: Fetching papers from sources...")
             start = time.time()
-            papers = fetch_papers(target_date, config)
+            papers = fetch_papers(target_date, config, allow_duplicates=allow_duplicates)
             elapsed = time.time() - start
             save_papers_cache(papers, str(fetch_cache))
             logger.info(f"  ✓ Fetched {len(papers)} papers in {elapsed:.1f}s")
@@ -182,6 +187,11 @@ def main() -> None:
         help="Force re-run all stages, ignoring cache",
     )
     parser.add_argument(
+        "--allow-duplicates",
+        action="store_true",
+        help="Skip cross-day deduplication, allowing previously reported papers",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="config.yaml",
@@ -195,7 +205,7 @@ def main() -> None:
     config = load_config(args.config)
 
     try:
-        run_pipeline(target_date, config, args.skip_cache)
+        run_pipeline(target_date, config, args.skip_cache, args.allow_duplicates)
     except Exception as e:
         print(f"\n❌ Pipeline failed: {e}")
         raise

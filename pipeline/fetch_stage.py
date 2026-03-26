@@ -10,23 +10,56 @@ from tools.hf_daily_tool import get_hf_daily_papers
 from tools.models import Paper
 
 
+def _normalize_arxiv_id(raw_id: str) -> str:
+    """Strip version suffix (e.g. 'v1') and extract base arXiv ID."""
+    match = re.search(r"(\d{4}\.\d{4,5})", raw_id)
+    return match.group(1) if match else raw_id
+
+
 def _extract_arxiv_id(url: str) -> str | None:
     """Extract arXiv ID from URL or paper ID."""
     match = re.search(r"(\d{4}\.\d{4,5})", url)
     return match.group(1) if match else None
 
 
-def fetch_papers(day: date, config: Config) -> list[Paper]:
+def _load_previously_reported_ids(reports_dir: str) -> set[str]:
+    """Load normalized paper IDs from all existing report JSON files."""
+    reported: set[str] = set()
+    reports_path = Path(reports_dir)
+    if not reports_path.exists():
+        return reported
+    for report_file in reports_path.glob("*.json"):
+        try:
+            with open(report_file) as f:
+                data = json.load(f)
+            papers = data if isinstance(data, list) else data.get("papers", [])
+            for p in papers:
+                reported.add(_normalize_arxiv_id(p["id"]))
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return reported
+
+
+def fetch_papers(day: date, config: Config, *, allow_duplicates: bool = False) -> list[Paper]:
     """
     Fetch papers from all enabled sources and deduplicate.
+
+    Deduplicates within the day (arXiv vs HuggingFace) and across
+    previous days (skips papers already in past reports).
 
     Args:
         day: Date to fetch papers for
         config: Configuration object with source settings
+        allow_duplicates: If True, skip cross-day deduplication
 
     Returns:
-        List of Paper objects, deduplicated by arXiv ID (prefers arXiv source)
+        List of Paper objects, deduplicated by normalized arXiv ID
     """
+    previously_reported = (
+        set() if allow_duplicates
+        else _load_previously_reported_ids(config.output.reports_dir)
+    )
+
     papers = []
     arxiv_ids = set()
 
@@ -36,15 +69,20 @@ def fetch_papers(day: date, config: Config) -> list[Paper]:
             categories=tuple(config.sources.arxiv_categories),
             max_results=config.sources.arxiv_max_results,
         )
-        papers.extend(arxiv_papers)
-        arxiv_ids = {p.id for p in arxiv_papers}
+        for p in arxiv_papers:
+            norm_id = _normalize_arxiv_id(p.id)
+            if norm_id not in previously_reported:
+                papers.append(p)
+                arxiv_ids.add(norm_id)
 
     if config.sources.hf_enabled:
         hf_papers = get_hf_daily_papers(day)
         for p in hf_papers:
             arxiv_id = _extract_arxiv_id(p.url) or _extract_arxiv_id(p.id)
-            if not arxiv_id or arxiv_id not in arxiv_ids:
-                papers.append(p)
+            norm_id = _normalize_arxiv_id(arxiv_id) if arxiv_id else None
+            if norm_id and (norm_id in arxiv_ids or norm_id in previously_reported):
+                continue
+            papers.append(p)
 
     return papers
 

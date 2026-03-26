@@ -37,7 +37,10 @@ daily_papers.py (orchestrator)
 
 **fetch_stage.py**
 - Aggregates papers from all enabled sources (arXiv, HuggingFace)
-- Deduplicates by arXiv ID (prefers arXiv version with abstract)
+- Deduplicates within the day by arXiv ID (prefers arXiv version with abstract)
+- Cross-day deduplication: scans existing report JSONs and skips papers already reported
+- Normalizes arXiv IDs (strips version suffixes like `v1`) for consistent matching
+- Accepts `allow_duplicates` flag to bypass cross-day dedup
 - Saves raw papers to cache
 
 **filter_stage.py**
@@ -132,9 +135,11 @@ daily_papers.py (orchestrator)
 - Flexible based on daily paper volume
 
 ### 4. Deduplication Strategy
-- Prefer arXiv versions (have full abstracts)
-- HuggingFace papers without arXiv IDs are kept
-- Prevents duplicate processing and reporting
+- Within-day: prefer arXiv versions (have full abstracts); HuggingFace papers without arXiv IDs are kept
+- Cross-day: scans all existing report JSONs for previously reported paper IDs
+- arXiv IDs are normalized (version suffixes like `v1` stripped) so `2603.07832v1` and `2603.07832` match
+- Necessary because arXiv OAI-PMH returns papers on every update date, not just original submission
+- `--allow-duplicates` CLI flag bypasses cross-day dedup
 
 ### 5. Caching Strategy
 - Save intermediate results after each stage
@@ -196,6 +201,9 @@ python daily_papers.py --date 2026-02-20
 
 # Force re-run all stages
 python daily_papers.py --skip-cache
+
+# Include papers already reported on previous days
+python daily_papers.py --allow-duplicates
 ```
 
 ### Switching LLM Providers

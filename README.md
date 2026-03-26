@@ -5,6 +5,7 @@ An automated pipeline for discovering, filtering, and ranking academic papers fr
 ## Features
 
 - **Multi-source fetching**: Aggregates papers from arXiv and HuggingFace Daily Papers
+- **Cross-day deduplication**: Automatically skips papers already reported on previous days (arXiv OAI-PMH returns revised/updated papers alongside new ones)
 - **Smart filtering**: Keyword-based filtering to reduce noise
 - **LLM-powered ranking**: Uses AWS Bedrock (Claude) or Gemini to score papers based on your relevance specification
 - **Automated summaries**: Generates concise summaries for top papers
@@ -154,6 +155,14 @@ uv run main.py --date 2026-02-20
 uv run main.py --skip-cache
 ```
 
+### Allow Previously Reported Papers
+
+```bash
+uv run main.py --allow-duplicates
+```
+
+By default the fetch stage skips papers that already appear in previous reports. Use this flag to include them (e.g. when re-running historical dates or after clearing reports).
+
 ### Use Custom Config
 
 ```bash
@@ -165,7 +174,9 @@ uv run main.py --config my_config.yaml
 ### 1. Fetch Stage
 - Fetches papers from arXiv (by category and date)
 - Scrapes HuggingFace Daily Papers
-- Deduplicates by arXiv ID (prefers arXiv version with abstract)
+- Deduplicates within the day by arXiv ID (prefers arXiv version with abstract)
+- Deduplicates across days by scanning previous reports (arXiv OAI-PMH returns revised papers on their update date, not just their original submission date)
+- IDs are normalized (version suffixes like `v1` stripped) for consistent matching
 
 ### 2. Filter Stage
 - Applies keyword matching on title and abstract
