@@ -27,6 +27,7 @@ class BedrockConfig:
 @dataclass
 class GeminiConfig:
     model: str
+    api_key: str = ""
 
 
 @dataclass
@@ -104,6 +105,7 @@ def load_config(path: str = "config.yaml") -> Config:
     if "gemini" in llm_data:
         gemini_config = GeminiConfig(
             model=llm_data["gemini"]["model"],
+            api_key=llm_data["gemini"].get("api_key", ""),
         )
 
     # Parse notifications config

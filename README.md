@@ -13,7 +13,7 @@ An automated pipeline for discovering, filtering, and ranking academic papers fr
 - **Slack notifications**: Post highly relevant papers to Slack automatically
 - **Caching**: Saves intermediate results for debugging and resume capability
 - **Robust error handling**: Retry logic with exponential backoff
-- **Multiple LLM providers**: Choose between AWS Bedrock or gemini-cli
+- **Multiple LLM providers**: Choose between AWS Bedrock or Gemini
 
 ## Architecture
 
@@ -62,28 +62,16 @@ export AWS_DEFAULT_REGION=us-east-1
 
 **Note**: You need access to Claude models in AWS Bedrock. If you haven't submitted the use case form, set `mock_mode: true` in config.yaml for testing.
 
-#### Option B: Gemini CLI
+#### Option B: Gemini (Google AI Studio)
 
-Install gemini-cli:
+Get an API key from https://aistudio.google.com/apikey and add it to `config.yaml`:
 
-```bash
-# Installation instructions for gemini-cli
-
-# install Node.js
-
-# Install gemini-cli
-npm install -g @google/gemini-cli
-
-# Run gemini to authenticate
-gemini
-```
-
-In `config.yaml`, set:
 ```yaml
 llm:
   provider: gemini
   gemini:
     model: gemini-2.5-flash-lite
+    api_key: your_api_key
 ```
 
 ### 3. Create Configuration
@@ -266,10 +254,10 @@ If you see "Model use case details have not been submitted":
 2. Wait 15 minutes for approval
 3. Or set `mock_mode: true` in config.yaml for testing
 
-### Gemini CLI Not Found
-If you see "gemini not found":
-1. Install gemini: `npm install -g @google/gemini-cli`
-2. Verify installation: `which gemini`
+### Gemini API Key Missing
+If you see "Gemini api_key is not set in config.yaml":
+1. Get a key from https://aistudio.google.com/apikey
+2. Add it to `config.yaml` under `llm.gemini.api_key`
 3. Or use `mock_mode: true` for testing
 
 ### Choosing Between Providers
@@ -280,7 +268,7 @@ If you see "gemini not found":
 
 **Use Gemini when:**
 - You prefer Google's models
-- You want simpler CLI-based integration
+- You want a simple API-key setup
 - You're already using Google Cloud services
 
 ### No Papers Found

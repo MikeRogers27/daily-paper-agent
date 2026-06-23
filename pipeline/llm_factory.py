@@ -28,6 +28,7 @@ def create_llm_client(config: Config) -> LLMClient:
 
         return GeminiClient(
             model=config.llm.gemini.model,
+            api_key=config.llm.gemini.api_key,
             max_retries=config.llm.max_retries,
             retry_delay=config.llm.retry_delay,
             mock_mode=config.llm.mock_mode,

@@ -1,14 +1,19 @@
 import json
 import random
-import subprocess
+import re
+
+import requests
 
 from .llm_client import LLMClient
+
+_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 class GeminiClient(LLMClient):
     def __init__(
         self,
-        model: str = "gemini-pro",
+        model: str = "gemini-2.5-flash-lite",
+        api_key: str = "",
         max_retries: int = 3,
         retry_delay: float = 2.0,
         mock_mode: bool = False,
@@ -16,38 +21,32 @@ class GeminiClient(LLMClient):
         super().__init__(max_retries, retry_delay)
         self.model = model
         self.mock_mode = mock_mode
+        if not mock_mode:
+            self.api_key = api_key
+            if not self.api_key:
+                raise ValueError(
+                    "Gemini api_key is not set in config.yaml. "
+                    "Get an API key from https://aistudio.google.com/apikey"
+                )
 
     def _invoke_impl(self, prompt: str, system_prompt: str | None = None) -> str:
-        """Gemini-CLI specific implementation."""
         if self.mock_mode:
             return self._mock_invoke(prompt)
 
-        # Combine system prompt and user prompt
-        full_prompt = prompt
+        url = f"{_API_BASE}/{self.model}:generateContent?key={self.api_key}"
+
+        body: dict = {"contents": [{"parts": [{"text": prompt}]}]}
         if system_prompt:
-            full_prompt = f"{system_prompt}\n\n{prompt}"
+            body["system_instruction"] = {"parts": [{"text": system_prompt}]}
 
-        try:
-            result = subprocess.run(
-                ["gemini", "-m", self.model, "--prompt", full_prompt],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True,
-            )
-            return result.stdout.strip()
+        resp = requests.post(url, json=body, timeout=120)
+        resp.raise_for_status()
 
-        except FileNotFoundError as err:
-            raise Exception("gemini not found. Please install it first.") from err
-        except subprocess.TimeoutExpired as err:
-            raise Exception("gemini timed out after 60 seconds") from err
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"gemini failed: {e.stderr}") from e
+        payload = resp.json()
+        return payload["candidates"][0]["content"]["parts"][0]["text"]
 
     def _mock_invoke(self, prompt: str) -> str:
         """Mock LLM response for testing."""
-        import re
-
         paper_ids = re.findall(r"Paper ID: ([^\n]+)", prompt)
 
         if paper_ids:
