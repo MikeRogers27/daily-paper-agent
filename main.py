@@ -8,7 +8,7 @@ from pipeline.fetch_stage import fetch_papers, load_papers_cache, save_papers_ca
 from pipeline.filter_stage import filter_papers
 from pipeline.llm_factory import create_llm_client
 from pipeline.logger import ErrorTracker, setup_logger
-from pipeline.ranking_stage import rank_papers
+from pipeline.ranking_stage import rank_papers, load_retry_papers
 from pipeline.report_stage import generate_json_report, generate_markdown_report
 from pipeline.slack_notifier import notify_slack
 from pipeline.summary_stage import generate_summaries, select_top_papers
@@ -88,12 +88,19 @@ def run_pipeline(
             logger.info(f"  ✓ Loaded {len(ranked)} papers from cache")
         else:
             logger.info("[3/6] Rank: Scoring papers with LLM...")
+            retry_papers = load_retry_papers(config.output.cache_dir)
+            if retry_papers:
+                logger.info(f"  ℹ {len(retry_papers)} papers loaded from retry queue")
             start = time.time()
             client = create_llm_client(config)
+            input_count = len(filtered) + len([p for p in retry_papers if p.id not in {f.id for f in filtered}])
             ranked = rank_papers(filtered, config, client)
             elapsed = time.time() - start
             save_papers_cache(ranked, str(rank_cache))
+            failed_count = input_count - len(ranked)
             logger.info(f"  ✓ Ranked {len(ranked)} papers in {elapsed:.1f}s")
+            if failed_count > 0:
+                logger.warning(f"  ⚠ {failed_count} papers saved to retry queue (batch failures)")
 
             # Log score distribution
             scores = [p.relevance_score or 0 for p in ranked]
