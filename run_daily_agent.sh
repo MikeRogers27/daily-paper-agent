@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-set -e
+
+set -euo pipefail
 
 # cd to project
-cd ~/src/daily-paper-agent
+cd "$(dirname "$0")"
 
 # Run the agent
-uv run main.py
+exec .venv/bin/python main.py >> logs/runs.log 2>&1
