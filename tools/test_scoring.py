@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 
 from config import Config, load_config
+from pipeline.jev_client import JevClient
 from pipeline.llm_client import LLMClient
 from pipeline.ranking_stage import rank_papers
 from tools.models import Paper
@@ -69,7 +70,7 @@ def test_case_to_paper(tc: TestCase) -> Paper:
     )
 
 
-def score_test_cases(test_cases: list[TestCase], config: Config, llm_client: LLMClient) -> dict[str, float]:
+def score_test_cases(test_cases: list[TestCase], config: Config, llm_client: LLMClient | JevClient) -> dict[str, float]:
     """Score test cases using rank_papers."""
     papers = [test_case_to_paper(tc) for tc in test_cases]
     ranked_papers = rank_papers(papers, config, llm_client)
@@ -155,9 +156,9 @@ def main() -> None:
     test_cases = load_test_cases(test_file)
 
     if args.command == "test":
-        from pipeline.llm_factory import create_llm_client
+        from pipeline.llm_factory import create_ranking_client
 
-        llm_client = create_llm_client(config)
+        llm_client = create_ranking_client(config)
         actual_scores = score_test_cases(test_cases, config, llm_client)
         comparison = compare_scores(test_cases, actual_scores)
         generate_test_report(comparison, test_cases, actual_scores)

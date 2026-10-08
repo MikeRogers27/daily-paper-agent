@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from config import Config
+from pipeline.jev_client import JevClient
 from pipeline.llm_client import LLMClient, parse_llm_response
 from tools.models import Paper
 
@@ -81,9 +82,9 @@ def clear_retry_papers(cache_dir: str) -> None:
         retry_path.unlink()
 
 
-def rank_papers(papers: list[Paper], config: Config, llm_client: LLMClient) -> list[Paper]:
+def rank_papers(papers: list[Paper], config: Config, llm_client: LLMClient | JevClient) -> list[Paper]:
     """
-    Rank papers using LLM based on relevance specification.
+    Rank papers using the configured scorer and relevance specification.
 
     Loads any papers pending retry from previous failed batches, merges them
     with the current papers, and attempts ranking. Papers in batches that fail
@@ -92,7 +93,7 @@ def rank_papers(papers: list[Paper], config: Config, llm_client: LLMClient) -> l
     Args:
         papers: List of papers to rank
         config: Configuration with batch size and other settings
-        llm_client: Initialized LLM client for LLM calls
+        llm_client: Initialized LLM or Jev client for relevance scoring
 
     Returns:
         Successfully scored papers sorted by relevance_score (descending).
@@ -121,14 +122,15 @@ def rank_papers(papers: list[Paper], config: Config, llm_client: LLMClient) -> l
     for i in range(0, len(papers), batch_size):
         batch = papers[i : i + batch_size]
 
-        # Build prompt with paper metadata
-        papers_text = ""
-        for p in batch:
-            authors_str = ", ".join(p.authors[:3]) if p.authors else "Unknown"
-            if p.authors and len(p.authors) > 3:
-                authors_str += " et al."
+        if not isinstance(llm_client, JevClient):
+            # Build prompt with paper metadata
+            papers_text = ""
+            for p in batch:
+                authors_str = ", ".join(p.authors[:3]) if p.authors else "Unknown"
+                if p.authors and len(p.authors) > 3:
+                    authors_str += " et al."
 
-            papers_text += f"""
+                papers_text += f"""
 Paper ID: {p.id}
 Title: {p.title}
 Authors: {authors_str}
@@ -137,12 +139,15 @@ URL: {p.url}
 
 """
 
-        prompt = load_ranking_prompt()
-        prompt = prompt.replace("{papers_text}", papers_text).replace("{current_spec}", spec)
+            prompt = load_ranking_prompt()
+            prompt = prompt.replace("{papers_text}", papers_text).replace("{current_spec}", spec)
 
         try:
-            response = llm_client.invoke(prompt)
-            scores = parse_llm_response(response)
+            if isinstance(llm_client, JevClient):
+                scores = llm_client.score_papers(batch, spec)
+            else:
+                response = llm_client.invoke(prompt)
+                scores = parse_llm_response(response)
 
             for p in batch:
                 if p.id in scores:

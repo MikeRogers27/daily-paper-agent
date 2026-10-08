@@ -14,6 +14,7 @@ An automated pipeline for discovering, filtering, and ranking academic papers fr
 - **Caching**: Saves intermediate results for debugging and resume capability
 - **Robust error handling**: Retry logic with exponential backoff
 - **Multiple LLM providers**: Choose between AWS Bedrock or Gemini
+- **Jev relevance scoring**: Optionally use TypeSafe's Jev while retaining your LLM for summaries
 
 ## Architecture
 
@@ -72,6 +73,41 @@ llm:
   gemini:
     model: gemini-2.5-flash-lite
     api_key: your_api_key
+```
+
+#### Optional: Jev (TypeSafe) for relevance scoring
+
+Obtain a TypeSafe API key from [the TypeSafe console](https://console.typesafe.ai/) and set it in your environment:
+
+```bash
+export TYPESAFE_API_KEY=your_api_key
+```
+
+Add these settings under `llm` in `config.yaml`, keeping `llm.provider` set to your
+configured Bedrock or Gemini provider for summaries and spec refinement:
+
+```yaml
+llm:
+  provider: gemini  # or bedrock; retain its existing settings
+  ranking_provider: jev  # default: llm (uses llm.provider for ranking too)
+  jev:
+    model: jev-latest
+    timeout: 120
+```
+
+Jev receives batches of paper metadata and the relevance specification at `spec.path`.
+The integration uses [TypeSafe's structured score API](https://api.typesafe.ai/redoc),
+whose rubric levels start at zero, and adds one to retain the pipeline's 1–5 scale.
+Ratings are probability-weighted averages and may be fractional. Existing report
+thresholds, paper selection, batching, retries, and failed-batch persistence still apply.
+`TYPESAFE_API_KEY` takes precedence over an optional `llm.jev.api_key` setting.
+`llm.mock_mode: true` avoids API calls and returns deterministic Jev scores of 3.0.
+
+After switching scorers, use `uv run main.py --skip-cache` to recompute cached results.
+The scoring evaluation tool also selects Jev when configured:
+
+```bash
+uv run python -m tools.test_scoring test --test-file tests/test-cases.example.yaml
 ```
 
 ### 3. Create Configuration

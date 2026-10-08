@@ -41,6 +41,13 @@ filter:
 llm:
   # LLM provider: "bedrock" or "gemini"
   provider: bedrock
+  # Relevance scorer: "llm" uses the provider above; "jev" uses TypeSafe
+  ranking_provider: llm
+  jev:
+    model: jev-latest
+    # Prefer the TYPESAFE_API_KEY environment variable
+    api_key: ""
+    timeout: 120  # seconds per request
   
   # AWS Bedrock settings (when provider: bedrock)
   bedrock:

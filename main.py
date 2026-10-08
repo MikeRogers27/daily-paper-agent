@@ -6,9 +6,9 @@ from pathlib import Path
 from config import Config, load_config
 from pipeline.fetch_stage import fetch_papers, load_papers_cache, save_papers_cache
 from pipeline.filter_stage import filter_papers
-from pipeline.llm_factory import create_llm_client
+from pipeline.llm_factory import create_llm_client, create_ranking_client
 from pipeline.logger import ErrorTracker, setup_logger
-from pipeline.ranking_stage import rank_papers, load_retry_papers
+from pipeline.ranking_stage import load_retry_papers, rank_papers
 from pipeline.report_stage import generate_json_report, generate_markdown_report
 from pipeline.slack_notifier import notify_slack
 from pipeline.summary_stage import generate_summaries, select_top_papers
@@ -87,12 +87,12 @@ def run_pipeline(
             ranked = load_papers_cache(str(rank_cache))
             logger.info(f"  ✓ Loaded {len(ranked)} papers from cache")
         else:
-            logger.info("[3/6] Rank: Scoring papers with LLM...")
+            logger.info(f"[3/6] Rank: Scoring papers with {config.llm.ranking_provider}...")
             retry_papers = load_retry_papers(config.output.cache_dir)
             if retry_papers:
                 logger.info(f"  ℹ {len(retry_papers)} papers loaded from retry queue")
             start = time.time()
-            client = create_llm_client(config)
+            client = create_ranking_client(config)
             input_count = len(filtered) + len([p for p in retry_papers if p.id not in {f.id for f in filtered}])
             ranked = rank_papers(filtered, config, client)
             elapsed = time.time() - start

@@ -31,6 +31,15 @@ class GeminiConfig:
 
 
 @dataclass
+class JevConfig:
+    """TypeSafe settings for structured relevance scoring."""
+
+    model: str = "jev-latest"
+    api_key: str = ""
+    timeout: float = 120.0
+
+
+@dataclass
 class LLMConfig:
     provider: str
     bedrock: BedrockConfig | None
@@ -39,6 +48,8 @@ class LLMConfig:
     max_retries: int
     retry_delay: float
     mock_mode: bool = False
+    ranking_provider: str = "llm"
+    jev: JevConfig | None = None
 
 
 @dataclass
@@ -86,6 +97,17 @@ def load_config(path: str = "config.yaml") -> Config:
 
     llm_data = data["llm"]
     provider = llm_data.get("provider", "bedrock")  # Default to bedrock for backward compatibility
+    ranking_provider = llm_data.get("ranking_provider", "llm")
+    if ranking_provider not in {"llm", "jev"}:
+        raise ValueError("llm.ranking_provider must be 'llm' or 'jev'")
+    jev_data = llm_data.get("jev", {})
+    jev_config = JevConfig(
+        model=jev_data.get("model", "jev-latest"),
+        api_key=os.environ.get("TYPESAFE_API_KEY") or jev_data.get("api_key", ""),
+        timeout=float(jev_data.get("timeout", 120.0)),
+    )
+    if jev_config.timeout <= 0:
+        raise ValueError("llm.jev.timeout must be positive")
 
     bedrock_config = None
     gemini_config = None
@@ -153,6 +175,8 @@ def load_config(path: str = "config.yaml") -> Config:
             max_retries=llm_data["max_retries"],
             retry_delay=llm_data["retry_delay"],
             mock_mode=llm_data.get("mock_mode", False),
+            ranking_provider=ranking_provider,
+            jev=jev_config,
         ),
         output=OutputConfig(
             top_n=data["output"]["top_n"],
